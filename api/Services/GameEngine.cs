@@ -6,92 +6,113 @@ namespace api.Services
     {
         private readonly Random _rng = new Random();
 
-        // 1. 核心战斗结算方法
-        public AttackResult ResolveAttack(Player attacker, Player target, Skill skill)
+        // 1. 掷骰子 (1d20)
+        public int RollD20()
         {
-            var result = new AttackResult();
+            return _rng.Next(1, 21);
+        }
 
-            // --- A. 资源检查 ---
-            if (attacker.Stats.CurrentEnergy < skill.EnergyCost ||
-                attacker.Stats.Actions < skill.ActionCost ||
-                attacker.Stats.BonusActions < skill.BonusActionCost)
+        // 2. 攻击计算 (对应 GameHub 的 CalculateAttack 调用)
+        // 返回值元组: (是否命中, 是否暴击, 是否大失败, 最终伤害)
+        public (bool IsHit, bool IsCrit, bool IsFumble, int Damage) CalculateAttack(
+            CharacterStats attacker,
+            CharacterStats target,
+            int skillDamage)
+        {
+            int roll = RollD20();
+
+            // 大失败 (1d20=20) - 文档规则
+            if (roll == 1) return (false, false, true, 0);
+
+            // 大成功 (1d20=1) - 双倍伤害
+            if (roll == 20) return (true, true, false, skillDamage * 2);
+
+            // 普通命中判定
+            // 命中阈值 = 12(基础) - 攻击者加成 + 目标闪避加成
+            // 规则：Roll > 阈值 则命中
+            int hitThreshold = 12 - attacker.BaseAccuracy + target.BaseEvasion;
+            bool isHit = roll > hitThreshold;
+
+            return (isHit, false, false, isHit ? skillDamage : 0);
+        }
+
+        // 3. 移动验证 (对应 GameHub 的 ValidateMove 调用)
+        public bool ValidateMove(Player player, int targetX, int targetY)
+        {
+            // 计算曼哈顿距离
+            int distance = Math.Abs(player.X - targetX) + Math.Abs(player.Y - targetY);
+
+            // 检查是否在移动范围内
+            // 注意：这里只检查距离，资源(Actions/BonusActions)扣除逻辑已移交 GameHub 处理
+            if (distance <= player.Stats.Speed && distance > 0)
             {
-                result.Success = false;
-                result.Message = "资源不足！无法释放技能。";
-                return result;
+                return true;
+            }
+            return false;
+        }
+
+        // 4. 技能范围检查 (对应 GameHub 的 IsInRange 调用)
+        public bool IsInRange(Player p1, int targetX, int targetY, int range)
+        {
+            int distance = Math.Abs(p1.X - targetX) + Math.Abs(p1.Y - targetY);
+            return distance <= range;
+        }
+        // 修改 CalculateAttack 支持反应类型
+        // reactionType: 0=无, 1=闪避(Dodge), 2=格挡(Block), 3=反击(Counter)
+        public (bool IsHit, bool IsCrit, int Damage, string Log) ResolveCombat(
+            CharacterStats attacker,
+            CharacterStats target,
+            int baseDamage,
+            int reactionType)
+        {
+            int roll1 = RollD20();
+            int roll2 = RollD20();
+            int finalRoll = roll1;
+            string rollLog = $"D20={roll1}";
+
+            // 1. 处理闪避 (Dodge): 劣势 (取两次最低)
+            if (reactionType == 1)
+            {
+                finalRoll = Math.Min(roll1, roll2);
+                rollLog = $"闪避劣势(D20={roll1},{roll2} 取 {finalRoll})";
             }
 
-            // --- B. 扣除资源 ---
-            attacker.Stats.CurrentEnergy -= skill.EnergyCost;
-            attacker.Stats.Actions -= skill.ActionCost;
-            attacker.Stats.BonusActions -= skill.BonusActionCost;
+            // 命中判定
+            int hitThreshold = 12 - attacker.BaseAccuracy + target.BaseEvasion;
 
-            // --- C. 投掷 D20 (1-20) ---
-            int roll = _rng.Next(1, 21);
-            result.RollValue = roll;
+            // 2. 处理格挡 (Block): 假设增加防御等级或者直接减伤？
+            // 根据文档常见设计，格挡通常是命中照常，但伤害减半。这里我们先按命中算。
 
-            // --- D. 判定 大失败/大成功 [cite: 230] ---
-            // 规则：1d20=20 为大失败(MISS)，1d20=1 为大成功(双倍伤害)
-            // 注意：通常DND是1大失败20大成功，但这里必须严格遵照你的文档 [cite: 230]
-            if (roll == 20)
+            bool isCrit = (finalRoll == 1); // 大成功
+            bool isFumble = (finalRoll == 20); // 大失败
+
+            bool isHit = (finalRoll > hitThreshold) || isCrit;
+            if (isFumble) isHit = false;
+
+            int finalDamage = 0;
+            string resultLog = "";
+
+            if (isHit)
             {
-                result.IsHit = false;
-                result.Message = $"大失败！(D20=20) 攻击落空！";
-                return result; // 直接返回，不造成伤害
-            }
+                // 计算基础伤害
+                int dmg = isCrit ? baseDamage * 2 : baseDamage;
 
-            bool isCrit = (roll == 1);
-            int finalDamage = isCrit ? skill.Damage * 2 : skill.Damage;
+                // 3. 处理格挡 (Block): 伤害减半 (向下取整，最少1点)
+                if (reactionType == 2)
+                {
+                    dmg = Math.Max(1, dmg / 2);
+                    resultLog += " [已格挡]";
+                }
 
-            // --- E. 命中计算 [cite: 231] ---
-            // 规则：成功命中几率最低60% (即 1d20 > 8 命中? 文档例子是 1d20>12 为60%)
-            // 公式：Roll + 攻击者命中加成 - 目标闪避加成
-            // 我们设定基础阈值为 12 (即如果不加成，需要掷出13以上才能中，概率40%? 文档说最低60%可能指包含基础修正)
-            // 这里我们采用标准战棋做法： 攻击检定值 = Roll + BaseAccuracy
-            // 防御等级(AC) = 12 + BaseEvasion
-            int attackRollTotal = roll + attacker.Stats.BaseAccuracy;
-            int targetAC = 12 + target.Stats.BaseEvasion;
-
-            bool normalHit = attackRollTotal >= targetAC;
-
-            // 只要是大成功(1) 或者 检定通过，就算命中
-            if (isCrit || normalHit)
-            {
-                result.IsHit = true;
-                result.DamageDealt = finalDamage;
-
-                // 扣血
-                target.Stats.CurrentHp -= finalDamage;
-                if (target.Stats.CurrentHp < 0) target.Stats.CurrentHp = 0;
-
-                string hitType = isCrit ? "大成功(双倍)" : "命中";
-                result.Message = $"{hitType}! (🎲{roll}+{attacker.Stats.BaseAccuracy} vs {targetAC}) 造成 {finalDamage} 伤害。";
+                finalDamage = dmg;
+                resultLog += isCrit ? " 大成功(双倍)!" : " 命中!";
             }
             else
             {
-                result.IsHit = false;
-                result.Message = $"未命中 (🎲{roll}+{attacker.Stats.BaseAccuracy} vs {targetAC})";
+                resultLog = " 未命中/被闪避";
             }
 
-            result.Success = true; // 技能成功释放了（只是可能没打中）
-            return result;
+            return (isHit, isCrit, finalDamage, $"{rollLog} vs {hitThreshold} => {resultLog}");
         }
-
-        // 2. 距离判定 (曼哈顿距离：走格子的距离) [cite: 236]
-        public bool IsInRange(Player p1, int targetX, int targetY, int range)
-        {
-            int dist = Math.Abs(p1.X - targetX) + Math.Abs(p1.Y - targetY);
-            return dist <= range;
-        }
-    }
-
-    // 用于返回给前端的结算结果
-    public class AttackResult
-    {
-        public bool Success { get; set; } // 逻辑是否执行成功
-        public bool IsHit { get; set; }   // 是否命中
-        public int DamageDealt { get; set; }
-        public int RollValue { get; set; }
-        public string Message { get; set; } = string.Empty;
     }
 }

@@ -35,6 +35,8 @@ export const useGameStore = defineStore('game', () => {
   const currentRoom = ref<GameRoom | null>(null)
   const isConnected = ref(false)
   const myUsername = ref('')
+  const isReacting = ref(false)
+  const reactionContext = ref({ attackerName: '', skillName: '' })
 
   // 计算属性 Getters
   // 获取当前登录玩家的对象
@@ -62,6 +64,12 @@ export const useGameStore = defineStore('game', () => {
     newConnection.on('ReceiveLog', (msg: string) => {
       ElMessage.info(msg)
     })
+
+    newConnection.on('RequestReaction', (attackerName: string, skillName: string) => {
+      console.log("收到反应请求", attackerName, skillName)
+      reactionContext.value = { attackerName, skillName }
+      isReacting.value = true // 触发 UI 弹窗
+   })
 
     try {
       await newConnection.start()
@@ -93,7 +101,27 @@ export const useGameStore = defineStore('game', () => {
     }
   }
 
+  // 使用技能
+  const useSkill = async (skillId: string, targetX: number, targetY: number) => {
+    if (!connection.value || !currentRoom.value) return
+    try {
+      await connection.value.invoke('UseSkill', currentRoom.value.roomId, skillId, targetX, targetY)
+    } catch (err) {
+      console.error("技能释放失败", err)
+      ElMessage.error("技能释放请求失败")
+    }
+  }
 
+  // 发送反应选择
+  const sendReaction = async (type: number) => {
+    if (!checkConnection() || !currentRoom.value) return
+    try {
+        await connection.value!.invoke('SubmitReaction', currentRoom.value.roomId, type)
+        isReacting.value = false // 关闭弹窗
+    } catch (err) {
+        console.error("反应提交失败", err)
+    }
+  }
   return {
     connection,
     currentRoom,
@@ -101,6 +129,7 @@ export const useGameStore = defineStore('game', () => {
     myPlayer,
     initConnection,
     joinRoom,
-    movePiece
+    movePiece,
+    useSkill
   }
 })

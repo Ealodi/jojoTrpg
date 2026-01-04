@@ -19,5 +19,15 @@ namespace api.Models
 
         // 虫箭位置 (如果未被拾取)
         public (int X, int Y)? ArrowPosition { get; set; } = null;
+        // 新增：当前正在进行的攻击交互 (挂起状态)
+        public PendingInteraction? CurrentInteraction { get; set; }
+    }
+    public class PendingInteraction
+    {
+        public string AttackerId { get; set; } // 攻击者 ConnectionId
+        public string TargetId { get; set; }   // 受害者 ConnectionId
+        public string SkillId { get; set; }
+        public int SkillDamage { get; set; }
+        public int SkillAccuracy { get; set; } // 技能本身的加成
     }
 }
