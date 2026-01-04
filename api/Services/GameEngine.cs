@@ -6,37 +6,13 @@ namespace api.Services
     {
         private readonly Random _rng = new Random();
 
-        // 1. 掷骰子 (1d20)
+        // 掷骰子 (1d20)
         public int RollD20()
         {
             return _rng.Next(1, 21);
         }
 
-        // 2. 攻击计算 (对应 GameHub 的 CalculateAttack 调用)
-        // 返回值元组: (是否命中, 是否暴击, 是否大失败, 最终伤害)
-        public (bool IsHit, bool IsCrit, bool IsFumble, int Damage) CalculateAttack(
-            CharacterStats attacker,
-            CharacterStats target,
-            int skillDamage)
-        {
-            int roll = RollD20();
-
-            // 大失败 (1d20=20) - 文档规则
-            if (roll == 1) return (false, false, true, 0);
-
-            // 大成功 (1d20=1) - 双倍伤害
-            if (roll == 20) return (true, true, false, skillDamage * 2);
-
-            // 普通命中判定
-            // 命中阈值 = 12(基础) - 攻击者加成 + 目标闪避加成
-            // 规则：Roll > 阈值 则命中
-            int hitThreshold = 12 - attacker.BaseAccuracy + target.BaseEvasion;
-            bool isHit = roll > hitThreshold;
-
-            return (isHit, false, false, isHit ? skillDamage : 0);
-        }
-
-        // 3. 移动验证 (对应 GameHub 的 ValidateMove 调用)
+        // 移动验证 (对应 GameHub 的 ValidateMove 调用)
         public bool ValidateMove(Player player, int targetX, int targetY)
         {
             // 计算曼哈顿距离
@@ -51,7 +27,7 @@ namespace api.Services
             return false;
         }
 
-        // 4. 技能范围检查 (对应 GameHub 的 IsInRange 调用)
+        // 技能范围检查 (对应 GameHub 的 IsInRange 调用)
         public bool IsInRange(Player p1, int targetX, int targetY, int range)
         {
             int distance = Math.Abs(p1.X - targetX) + Math.Abs(p1.Y - targetY);
@@ -113,5 +89,6 @@ namespace api.Services
 
             return (isHit, isCrit, finalDamage, $"{rollLog} vs {hitThreshold} => {resultLog}");
         }
+        
     }
 }

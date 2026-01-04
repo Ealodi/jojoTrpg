@@ -1,7 +1,5 @@
 ﻿using api.Models;
 using api.Services;
-using api.Models;
-using api.Services;
 using Microsoft.AspNetCore.SignalR;
 using System.Collections.Concurrent;
 
@@ -112,6 +110,9 @@ namespace api.Hubs
                 return;
             }
 
+            // 扣除攻击者消耗
+            player.Stats.Actions -= skill.ActionCost;
+            player.Stats.CurrentEnergy -= skill.EnergyCost;
             // 获取目标
             var target = room.Players.FirstOrDefault(p => p.X == targetX && p.Y == targetY);
 
@@ -156,7 +157,52 @@ namespace api.Hubs
             await Clients.Group(roomId).SendAsync("RoomUpdated", room);
         }
 
+        // 结束回合 (由当前行动玩家点击)
+        public async Task EndTurn(string roomId)
+        {
+            if (!_rooms.TryGetValue(roomId, out var room)) return;
 
+            // 1. 找到下一位玩家
+            int nextIndex = (room.ActivePlayerIndex + 1) % room.Players.Count;
+            room.ActivePlayerIndex = nextIndex;
+            var nextPlayer = room.Players[nextIndex];
+
+            // 2. 如果轮到第一个人，回合数+1
+            if (nextIndex == 0)
+            {
+                room.CurrentTurn++;
+                // 这里可以加入缩圈逻辑 UpdateSafeZone(room);
+            }
+
+            // 3. ★核心：重置下一位玩家的资源★
+            // 恢复基础动作
+            nextPlayer.Stats.Actions = 1;
+
+            // 计算附赠动作 (减去欠债)
+            if (nextPlayer.Stats.BonusActionDebt > 0)
+            {
+                nextPlayer.Stats.BonusActions = 0; // 扣除附赠动作
+                nextPlayer.Stats.BonusActionDebt = 0; // 清空债务
+                await Clients.Group(roomId).SendAsync("ReceiveLog", $"⚠️ {nextPlayer.Stats.Name} 因为上回合使用了反应，本回合失去附赠动作！");
+            }
+            else
+            {
+                nextPlayer.Stats.BonusActions = 1;
+            }
+
+            // 恢复反应次数
+            nextPlayer.Stats.Reactions = 1;
+
+            // 恢复能量 (每回合+1，简单规则)
+            if (nextPlayer.Stats.CurrentEnergy < nextPlayer.Stats.MaxEnergy)
+            {
+                nextPlayer.Stats.CurrentEnergy++;
+            }
+
+            // 4. 广播更新
+            await Clients.Group(roomId).SendAsync("RoomUpdated", room);
+            await Clients.Group(roomId).SendAsync("ReceiveLog", $"👉 轮到 {nextPlayer.Stats.Name} 行动 (回合 {room.CurrentTurn})");
+        }
         // 目标提交反应 (由前端弹窗调用)
         // reactionType: 0=不反应, 1=闪避, 2=格挡, 3=反击
         public async Task SubmitReaction(string roomId, int reactionType)

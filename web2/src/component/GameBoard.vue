@@ -88,6 +88,7 @@
         </div>
         <hr/>
         <button class="react-btn skip" @click="store.sendReaction(0)">❌ 不反应 (硬抗)</button>
+        <button class="action-btn" @click="store.endTurn()">结束回合</button>
       </div>
     </div>
   </div>
