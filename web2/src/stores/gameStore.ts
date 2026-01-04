@@ -93,6 +93,7 @@ export const useGameStore = defineStore('game', () => {
     }
   }
 
+
   return {
     connection,
     currentRoom,

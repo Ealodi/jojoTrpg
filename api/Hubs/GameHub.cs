@@ -81,5 +81,51 @@ namespace api.Hubs
             // ... 添加其他角色
             return new CharacterStats { Name = "杂鱼" };
         }
+
+        public async Task UseSkill(string roomId, string skillId, int targetX, int targetY)
+        {
+            // 1. 找到房间和玩家
+            if (_rooms.TryGetValue(roomId, out var room))
+            {
+                var player = room.Players.FirstOrDefault(p => p.ConnectionId == Context.ConnectionId);
+                if (player == null) return;
+
+                // 2. 获取技能详情
+                var skills = SkillLibrary.GetSkillsForCharacter(player.Stats.Name);
+                var skill = skills.FirstOrDefault(s => s.Id == skillId);
+                if (skill == null) return;
+
+                // 3. 验证距离
+                if (!_engine.IsInRange(player, targetX, targetY, skill.Range))
+                {
+                    await Clients.Caller.SendAsync("ReceiveLog", "❌ 目标超出射程！");
+                    return;
+                }
+
+                // 4. 处理对敌攻击
+                if (skill.TargetType == TargetType.Enemy)
+                {
+                    var target = room.Players.FirstOrDefault(p => p.X == targetX && p.Y == targetY);
+                    if (target != null)
+                    {
+                        // 调用引擎结算
+                        var result = _engine.ResolveAttack(player, target, skill);
+
+                        if (result.Success)
+                        {
+                            // 广播更新后的房间状态（血量变化）
+                            await Clients.Group(roomId).SendAsync("RoomUpdated", room);
+                            // 广播战斗日志
+                            await Clients.Group(roomId).SendAsync("ReceiveLog", $"⚔️ {player.Stats.Name} 使用了 {skill.Name}: {result.Message}");
+                        }
+                        else
+                        {
+                            await Clients.Caller.SendAsync("ReceiveLog", $"⚠️ {result.Message}");
+                        }
+                    }
+                }
+            }
+        }
     }
+
 }
