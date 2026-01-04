@@ -45,5 +45,14 @@ namespace api.Services
             }
             return false;
         }
+
+        public class AttackResult
+        {
+            public bool Success { get; set; } // 技能是否成功释放
+            public bool IsHit { get; set; }   // 是否命中
+            public int DamageDealt { get; set; }
+            public int RollValue { get; set; }
+            public string Message { get; set; }
+        }
     }
 }
