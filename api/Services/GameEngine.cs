@@ -57,7 +57,6 @@ namespace api.Services
             int distance = Math.Abs(p1.X - targetX) + Math.Abs(p1.Y - targetY);
             return distance <= range;
         }
-        // 修改 CalculateAttack 支持反应类型
         // reactionType: 0=无, 1=闪避(Dodge), 2=格挡(Block), 3=反击(Counter)
         public (bool IsHit, bool IsCrit, int Damage, string Log) ResolveCombat(
             CharacterStats attacker,

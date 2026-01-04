@@ -42,7 +42,7 @@ namespace api.Hubs
             await Clients.Group(roomId).SendAsync("ReceiveLog", $"系统: {username} ({characterName}) 加入了游戏。");
         }
 
-        // 修改：移动现在消耗附赠动作 (根据 Skill.cs 的设定)
+        // 移动现在消耗附赠动作
         public async Task MovePiece(string roomId, int x, int y)
         {
             if (_rooms.TryGetValue(roomId, out var room))
@@ -157,7 +157,7 @@ namespace api.Hubs
         }
 
 
-        // 2. 目标提交反应 (由前端弹窗调用)
+        // 目标提交反应 (由前端弹窗调用)
         // reactionType: 0=不反应, 1=闪避, 2=格挡, 3=反击
         public async Task SubmitReaction(string roomId, int reactionType)
         {

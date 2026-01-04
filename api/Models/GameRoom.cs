@@ -24,10 +24,9 @@ namespace api.Models
     }
     public class PendingInteraction
     {
-        public string AttackerId { get; set; } // 攻击者 ConnectionId
-        public string TargetId { get; set; }   // 受害者 ConnectionId
+        public string AttackerId { get; set; }
+        public string TargetId { get; set; }
         public string SkillId { get; set; }
         public int SkillDamage { get; set; }
-        public int SkillAccuracy { get; set; } // 技能本身的加成
     }
 }

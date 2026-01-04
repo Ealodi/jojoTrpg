@@ -76,28 +76,20 @@
     </div>
 
     <div v-if="store.isReacting" class="reaction-overlay">
-       <div class="reaction-box">
-         <h3>⚠️ 警告！即将受到攻击</h3>
-         <p><strong>{{ store.reactionContext.attackerName }}</strong> 正在对你使用 <strong>{{ store.reactionContext.skillName }}</strong></p>
-         <p class="warning-text">消耗 1 反应 + 下回合 1 附赠动作</p>
-         
-         <div class="reaction-buttons">
-           <el-button type="warning" @click="store.sendReaction(1)">
-             🏃 闪避 (增加闪避率)
-           </el-button>
-           <el-button type="primary" @click="store.sendReaction(2)">
-             🛡️ 格挡 (伤害减半)
-           </el-button>
-           <el-button type="danger" @click="store.sendReaction(3)">
-             ⚔️ 反击 (先手一击)
-           </el-button>
-           <el-divider>或者</el-divider>
-           <el-button type="info" @click="store.sendReaction(0)">
-             ❌ 不反应 (直接承受)
-           </el-button>
-         </div>
-       </div>
-     </div>
+      <div class="reaction-box">
+        <h3>⚠️ 即将受到攻击！</h3>
+        <p><strong>{{ store.reactionContext.attackerName }}</strong> 正在攻击你！</p>
+        <p class="warning">消耗 1 反应 + 下回合 1 附赠动作</p>
+        
+        <div class="btn-group">
+          <button class="react-btn dodge" @click="store.sendReaction(1)">🏃 闪避 (劣势)</button>
+          <button class="react-btn block" @click="store.sendReaction(2)">🛡️ 格挡 (减伤)</button>
+          <button class="react-btn counter" @click="store.sendReaction(3)">⚔️ 反击 (先手)</button>
+        </div>
+        <hr/>
+        <button class="react-btn skip" @click="store.sendReaction(0)">❌ 不反应 (硬抗)</button>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -232,4 +224,19 @@ const handleCellClick = (index: number) => {
 .skill-btn .cost { float: right; font-size: 0.8em; color: #888; }
 .skill-btn.active .cost { color: #ccc; }
 button:disabled { opacity: 0.5; cursor: not-allowed; }
+.reaction-overlay {
+  position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+  background: rgba(0,0,0,0.8); z-index: 9999;
+  display: flex; justify-content: center; align-items: center;
+}
+.reaction-box {
+  background: white; padding: 30px; border-radius: 12px; text-align: center; width: 300px;
+}
+.warning { color: #d35400; font-size: 0.9em; margin-bottom: 20px; }
+.btn-group { display: flex; flex-direction: column; gap: 10px; }
+.react-btn { padding: 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; color: white; }
+.dodge { background: #3498db; }
+.block { background: #f1c40f; color: black; }
+.counter { background: #e74c3c; }
+.skip { background: #95a5a6; width: 100%; margin-top: 10px; }
 </style>

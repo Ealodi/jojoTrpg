@@ -44,6 +44,14 @@ export const useGameStore = defineStore('game', () => {
     currentRoom.value?.players.find(p => p.userId === myUsername.value)
   )
 
+  const checkConnection = (): boolean => {
+    if (!connection.value || connection.value.state !== HubConnectionState.Connected) {
+      ElMessage.warning('未连接到服务器，无法操作')
+      return false
+    }
+    return true
+  }
+
   // 动作 Actions
   const initConnection = async () => {
     // 指向你的 C# 后端地址 (注意端口号，VS2022 启动时通常是 5xxx 或 7xxx，请查看 launchSettings.json)

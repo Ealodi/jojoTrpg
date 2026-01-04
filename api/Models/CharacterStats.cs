@@ -18,10 +18,10 @@
 
         public int Actions { get; set; } = 1;
         public int BonusActions { get; set; } = 1;
-        // 新增：反应资源
+        // 反应资源
         public int Reactions { get; set; } = 1;
 
-        // 新增：下回合需要扣除的附赠动作 (欠债)
+        // 下回合需要扣除的附赠动作 (欠债)
         public int BonusActionDebt { get; set; } = 0;
 
         public bool IsAlive => CurrentHp > 0;
