@@ -1,8 +1,0 @@
-{
-  "dependencies": {
-    "nanoid": "^5.1.6",
-    "pinia": "^3.0.4",
-    "socket.io-client": "^4.8.3",
-    "ws": "^8.18.3"
-  }
-}
