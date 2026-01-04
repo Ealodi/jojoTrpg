@@ -69,7 +69,9 @@
       </div>
 
       <hr />
-      
+      <div class="turn-control">
+         <button class="end-turn-btn" @click="store.endTurn()">⏭️ 结束回合</button>
+      </div>
       <div class="logs">
          <p>房间: {{ store.currentRoom.roomId }}</p>
       </div>
@@ -88,7 +90,6 @@
         </div>
         <hr/>
         <button class="react-btn skip" @click="store.sendReaction(0)">❌ 不反应 (硬抗)</button>
-        <button class="action-btn" @click="store.endTurn()">结束回合</button>
       </div>
     </div>
   </div>

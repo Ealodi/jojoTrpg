@@ -130,6 +130,14 @@ export const useGameStore = defineStore('game', () => {
         console.error("反应提交失败", err)
     }
   }
+
+  // ★ 新增：结束回合
+  const endTurn = async () => {
+    if (!checkConnection() || !currentRoom.value) return
+    try {
+        await connection.value!.invoke('EndTurn', currentRoom.value.roomId)
+    } catch (err) { console.error(err) }
+  }
   return {
     connection,
     currentRoom,
@@ -138,6 +146,8 @@ export const useGameStore = defineStore('game', () => {
     initConnection,
     joinRoom,
     movePiece,
-    useSkill
+    useSkill,
+    sendReaction,
+    endTurn
   }
 })
